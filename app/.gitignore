@@ -1,0 +1,7 @@
+/build
+
+*.gguf
+/llama.cpp
+/build-android
+.externalNativeBuild
+.cxx
