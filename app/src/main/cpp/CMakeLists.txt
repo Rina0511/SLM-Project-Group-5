@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-project("slm02")
+project("androidSLM")
+
+
 
 # Build native-lib.cpp into libnative-lib.so
 add_library(

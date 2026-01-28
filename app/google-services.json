@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "622167526640",
+    "project_id": "slm-allergen-app",
+    "storage_bucket": "slm-allergen-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:622167526640:android:66c53984bf1aebed564635",
+        "android_client_info": {
+          "package_name": "edu.utem.ftmk.slm02"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCGnOobPp4AID_qPHEh3C4FkfaT6s_3zkQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

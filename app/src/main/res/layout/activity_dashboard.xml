@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#737EC1">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#737EC1"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:text="On-Device SLM Dashboard"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/black"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="24dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+
+        <!-- 1.0 Device Specification -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="1.0 Device Specification"
+                    android:textColor="#3F51B5"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvModelName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Active Model: --"
+                    android:textColor="@android:color/black" />
+
+                <TextView
+                    android:id="@+id/tvHardware"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Device: --"
+                    android:textColor="@android:color/black" />
+
+                <TextView
+                    android:id="@+id/tvOS"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="OS: --"
+                    android:textColor="@android:color/black" />
+
+                <TextView
+                    android:id="@+id/tvDataset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Dataset: foodpreprocessed.csv (200 samples)"
+                    android:textColor="@android:color/black" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- 3.0 Metrics Results -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="3.0 Metrics Results"
+            android:textColor="@android:color/black"
+            android:textStyle="bold" />
+
+        <!-- ================= TABLE 1: QUALITY ================= -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Table 1: Prediction Quality Metrics"
+            android:textColor="@android:color/black"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:orientation="horizontal">
+
+            <!-- FIXED MODEL COLUMN -->
+            <TableLayout
+                android:id="@+id/tableQualityModel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="#FFFFFF">
+
+                <TableRow
+                    android:layout_width="wrap_content"
+                    android:background="#E8EAF6">
+
+                    <TextView
+                        style="@style/TableHeaderCell"
+                        android:text=" Model " />
+                </TableRow>
+            </TableLayout>
+
+            <!-- SCROLLABLE METRICS -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fillViewport="true">
+
+                <TableLayout
+                    android:id="@+id/tableQualityMetrics"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#FFFFFF">
+
+                    <TableRow android:background="#E8EAF6">
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Precision " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Recall " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" F1 Micro " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" F1 Macro " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" EMR " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Hamming Loss " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" FNR " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" TP " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" FP " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" FN " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" TN " />
+                    </TableRow>
+
+                </TableLayout>
+            </HorizontalScrollView>
+        </LinearLayout>
+
+        <!-- ================= TABLE 2: SAFETY ================= -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Table 2: Safety-Oriented Metrics"
+            android:textColor="@android:color/black"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:orientation="horizontal">
+
+            <TableLayout
+                android:id="@+id/tableSafetyModel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="#FFFFFF">
+
+                <TableRow android:background="#E8EAF6">
+
+                    <TextView
+                        style="@style/TableHeaderCell"
+                        android:text=" Model " />
+                </TableRow>
+            </TableLayout>
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fillViewport="true">
+
+                <TableLayout
+                    android:id="@+id/tableSafetyMetrics"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#FFFFFF">
+
+                    <TableRow android:background="#E8EAF6">
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Hallucination Rate (%) " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Over-Prediction Rate (%) " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Abstention Accuracy (%) " />
+                    </TableRow>
+
+                </TableLayout>
+            </HorizontalScrollView>
+        </LinearLayout>
+
+        <!-- ================= TABLE 3: EFFICIENCY ================= -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Table 3: On-Device Efficiency Metrics"
+            android:textColor="@android:color/black"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:orientation="horizontal">
+
+            <TableLayout
+                android:id="@+id/tableEfficiencyModel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="#FFFFFF">
+
+                <TableRow android:background="#E8EAF6">
+
+                    <TextView
+                        style="@style/TableHeaderCell"
+                        android:text=" Model " />
+                </TableRow>
+            </TableLayout>
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fillViewport="true">
+
+                <TableLayout
+                    android:id="@+id/tableEfficiencyMetrics"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="#FFFFFF">
+
+                    <TableRow android:background="#E8EAF6">
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Avg Latency (ms) " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Avg TTFT (ms) " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Avg ITPS " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Avg OTPS " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Avg OET (ms) " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Avg Java Heap (KB) " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Avg Native Heap (KB) " />
+
+                        <TextView
+                            style="@style/TableHeaderCell"
+                            android:text=" Avg PSS (KB) " />
+                    </TableRow>
+
+                </TableLayout>
+            </HorizontalScrollView>
+        </LinearLayout>
+
+
+        <!-- 5.0 Model Summarization -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="5.0 Model Summarization"
+            android:textColor="@android:color/black"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/modelCardsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <Button
+            android:id="@+id/btnExportCSV"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Export Dashboard Summary (CSV)" />
+
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:padding="16dp"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView android:id="@+id/tvCardModelName" android:textStyle="bold" android:textSize="18sp" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+
+        <TextView android:id="@+id/tvRankTag" android:textColor="#FBC02D" android:textStyle="bold" android:textSize="12sp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"/>
+
+        <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp">
+            <TextView android:text="ACCURACY" android:layout_weight="1" android:layout_width="0dp" android:layout_height="wrap_content"/>
+            <TextView android:id="@+id/tvAccuracyPercent" android:textSize="22sp" android:textStyle="bold" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+        </LinearLayout>
+
+        <GridLayout android:columnCount="2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp">
+            <TextView android:text="STRENGTHS" android:textSize="10sp" android:textStyle="bold"/>
+            <TextView android:text="WEAKNESSES" android:textSize="10sp" android:textStyle="bold" android:layout_marginStart="16dp"/>
+            <TextView android:id="@+id/tvStrength" android:textSize="12sp" android:layout_width="wrap_content"/>
+            <TextView android:id="@+id/tvWeakness" android:textSize="12sp" android:layout_marginStart="16dp" android:layout_width="wrap_content"/>
+        </GridLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

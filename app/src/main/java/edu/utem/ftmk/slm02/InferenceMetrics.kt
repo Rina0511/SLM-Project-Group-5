@@ -10,28 +10,14 @@ package edu.utem.ftmk.slm02
  * Represent the metrics to measure the inference performance
  */
 
-data class InferenceMetrics (
 
-    // Total time taken to complete the inference
+data class InferenceMetrics(
     val latencyMs: Long,
-
-    // Memory snapshot
     val javaHeapKb: Long,
     val nativeHeapKb: Long,
     val totalPssKb: Long,
-
-    // Efficiency metrics
-
-    // Time-to-First-Token
     val ttft: Long,
-
-    // Input-Token-Per-Second
     val itps: Long,
-
-    // Output-Token-Per-Second
     val otps: Long,
-
-    // Output-Evaluation-Time
     val oet: Long
-
 )

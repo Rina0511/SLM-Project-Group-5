@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.Slm02" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Base.Theme.Slm02" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#304FFE</item>
+        <item name="colorPrimaryVariant">#1A237E</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#5C6BC0</item>
+        <item name="android:statusBarColor">#1A237E</item>
+    </style>
 </resources>

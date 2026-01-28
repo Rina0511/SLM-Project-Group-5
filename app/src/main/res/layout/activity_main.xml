@@ -1,47 +1,101 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:orientation="vertical"
+    android:background="#D3E1FA">
 
-    <TextView
-        android:id="@+id/textView2"
+    <com.google.android.material.appbar.MaterialToolbar
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#3F51B5"
+        app:title="Ingredients Analyzer"
+        app:titleTextColor="#FFFFFF" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:padding="16dp"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView android:text="SELECT DATASET" android:textSize="12sp" android:textStyle="bold" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+                    <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content">
+                        <Spinner android:id="@+id/spinnerDataset" android:layout_weight="1" android:layout_width="0dp" android:layout_height="48dp" />
+
+                        <Button
+                            android:id="@+id/btnLoad"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:backgroundTint="#7489FB"
+                            android:text="Load" />
+                    </LinearLayout>
+
+                    <TextView android:text="SELECT MODEL" android:textSize="12sp" android:textStyle="bold" android:layout_marginTop="8dp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+                    <LinearLayout android:orientation="horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <Spinner
+                            android:id="@+id/spinnerModel"
+                            android:layout_weight="1"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp" />
+
+                        <Button
+                            android:id="@+id/btnImportModel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:backgroundTint="#7285F2"
+                            android:text="Import" />
+
+                        <Button
+                            android:id="@+id/btnRunBatch"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:backgroundTint="#7285F2"
+                            android:text="Run All" />
+                    </LinearLayout>
+
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout android:id="@+id/analyzingSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone" android:layout_marginTop="16dp">
+                <TextView android:id="@+id/tvAnalyzingStatus" android:text="ANALYZING" android:textStyle="bold" android:textColor="#2E7D32" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+                <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="10"/>
+                <TextView android:id="@+id/tvCurrentItemName" android:text="Processing item..." android:textSize="12sp" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="Inference Results" android:textColor="#3F51B5" android:textStyle="bold" />
+            <LinearLayout android:id="@+id/resultsContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="8dp"/>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:paddingBottom="8dp"
-        android:text="Allergy Prediction"
-        android:textColor="#304FFE"
-        android:textSize="20sp"
-        android:textStyle="bold" />
-
-    <EditText
-        android:id="@+id/editTextIngedients"
-        android:layout_width="match_parent"
-        android:layout_height="86dp"
-        android:layout_marginBottom="8dp"
-        android:ems="10"
-        android:hint="Enter ingredients "
-        android:inputType="text"
-        android:paddingBottom="8dp" />
-
-    <Button
-        android:id="@+id/btnPredict"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:paddingBottom="8dp"
-        android:text="Predict"
-        android:textAllCaps="false"
-        android:textSize="16sp" />
-
-    <TextView
-        android:id="@+id/tvResult"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:paddingBottom="8dp"
-        android:text="TextView" />
-
+        app:menu="@menu/bottom_nav_menu" />
 </LinearLayout>
