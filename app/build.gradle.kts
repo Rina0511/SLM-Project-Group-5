@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId = "edu.utem.ftmk.slm02"
-        minSdk = 25
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -70,6 +70,8 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation("com.google.android.material:material:1.12.0")
     implementation("com.google.firebase:firebase-firestore-ktx:25.0.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation("org.apache.poi:poi-ooxml:5.2.5")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

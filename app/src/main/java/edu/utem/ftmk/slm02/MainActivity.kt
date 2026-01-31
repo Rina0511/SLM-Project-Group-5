@@ -16,9 +16,12 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
+
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,7 +30,7 @@ class MainActivity : AppCompatActivity() {
     private var activeModel = ""
     private var currentlyLoadedRows = mutableListOf<List<String>>()
 
-    // Dashboard metrics (simple global counters)
+    // Dashboard/global counters (optional)
     private var totalTP = 0
     private var totalFP = 0
     private var totalFN = 0
@@ -39,18 +42,16 @@ class MainActivity : AppCompatActivity() {
     private var totalItemsInBatch = 0
     private var lastPSS = 0L
 
-    // If user hasn’t selected a model file yet
+    // Model picker flow
     private var pendingRunBatch = false
     private var pendingModelName = ""
+
     private var currentSessionId: String = ""
     private var currentDatasetLabel: String = ""
-    private var currentDatasetKey: String = ""   // NEW
+    private var currentDatasetKey: String = ""
 
-
-    //private var isSessionActive: Boolean = false
     private val PREFS = "bench_prefs"
     private val KEY_SESSION_ID = "experiment_session_id"
-
 
     companion object {
         init {
@@ -61,7 +62,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // MUST match your JNI in native-lib.cpp
+    // MUST match JNI
     external fun inferAllergens(modelPath: String, prompt: String): String
 
     private val allowedAllergens = setOf(
@@ -69,7 +70,8 @@ class MainActivity : AppCompatActivity() {
         "soy", "fish", "shellfish", "sesame"
     )
 
-    // SAF picker: pick a GGUF file and copy into internal storage
+
+    // Pick GGUF and copy into internal storage
     private val pickModelLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             if (uri == null) {
@@ -77,9 +79,10 @@ class MainActivity : AppCompatActivity() {
                 pendingRunBatch = false
                 return@registerForActivityResult
             }
+
             contentResolver.takePersistableUriPermission(
                 uri,
-                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
 
             val modelName = pendingModelName.ifEmpty { "selected_model.gguf" }
@@ -89,7 +92,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Model saved: $modelName", Toast.LENGTH_SHORT).show()
                 if (pendingRunBatch) {
                     pendingRunBatch = false
-                    runAllAnalysis() // retry after model saved
+                    runAllAnalysis()
                 }
             } else {
                 Toast.makeText(this, "Failed to save model.", Toast.LENGTH_LONG).show()
@@ -97,7 +100,40 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
+        setupSpinners()
+        setupNavigation()
+
+        currentSessionId = getOrCreateSessionId()
+        Toast.makeText(this, "Benchmark Session: $currentSessionId", Toast.LENGTH_SHORT).show()
+
+        findViewById<Button>(R.id.btnLoad).setOnClickListener { performLoad() }
+        findViewById<Button>(R.id.btnRunBatch).setOnClickListener { runAllAnalysis() }
+
+        // Optional: long press Run to pick model
+        findViewById<Button>(R.id.btnRunBatch).setOnLongClickListener {
+            activeModel = findViewById<Spinner>(R.id.spinnerModel).selectedItem.toString()
+            pendingModelName = activeModel
+            pendingRunBatch = false
+            pickModelLauncher.launch(arrayOf("*/*"))
+            true
+        }
+
+        // Import model button
+        findViewById<Button>(R.id.btnImportModel).setOnClickListener {
+            activeModel = findViewById<Spinner>(R.id.spinnerModel).selectedItem.toString()
+            pendingModelName = activeModel
+            pendingRunBatch = false
+            pickModelLauncher.launch(arrayOf("*/*"))
+        }
+    }
+
+    // -------------------------
+    // Session ID (Prefs)
+    // -------------------------
     private fun getOrCreateSessionId(): String {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         val existing = prefs.getString(KEY_SESSION_ID, "") ?: ""
@@ -108,7 +144,7 @@ class MainActivity : AppCompatActivity() {
         return newId
     }
 
-    // optional: if you want a "New Experiment" button later
+    // Optional helper
     private fun resetSessionId() {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         prefs.edit().remove(KEY_SESSION_ID).apply()
@@ -116,36 +152,9 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "New benchmark session: $currentSessionId", Toast.LENGTH_SHORT).show()
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        setupSpinners()
-        setupNavigation()
-        currentSessionId = getOrCreateSessionId()
-        Toast.makeText(this, "Benchmark Session: $currentSessionId", Toast.LENGTH_SHORT).show()
-
-        findViewById<Button>(R.id.btnLoad).setOnClickListener { performLoad() }
-        findViewById<Button>(R.id.btnRunBatch).setOnClickListener { runAllAnalysis() }
-
-        // Optional: long-press Run to select model file manually
-        findViewById<Button>(R.id.btnRunBatch).setOnLongClickListener {
-            activeModel = findViewById<Spinner>(R.id.spinnerModel).selectedItem.toString()
-            pendingModelName = activeModel
-            pendingRunBatch = false
-            pickModelLauncher.launch(arrayOf("*/*"))
-            true
-        }
-        findViewById<Button>(R.id.btnImportModel).setOnClickListener {
-            activeModel = findViewById<Spinner>(R.id.spinnerModel).selectedItem.toString()
-            pendingModelName = activeModel
-            pendingRunBatch = false
-            pickModelLauncher.launch(arrayOf("*/*"))
-        }
-
-    }
-
-
+    // -------------------------
+    // UI setup
+    // -------------------------
     private fun setupSpinners() {
         val models = listOf(
             "Llama-3.2-1B",
@@ -165,21 +174,26 @@ class MainActivity : AppCompatActivity() {
             ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, sets)
     }
 
+    private fun setupNavigation() {
+        findViewById<BottomNavigationView>(R.id.bottomNav).setOnItemSelectedListener { item ->
+            if (item.itemId == R.id.nav_dashboard) {
+                openDashboard()
+                true
+            } else false
+        }
+    }
+
+    // -------------------------
+    // Load dataset
+    // -------------------------
     private fun performLoad() {
         val spinner = findViewById<Spinner>(R.id.spinnerDataset)
         val pos = spinner.selectedItemPosition
+
         val allData = loadCSV()
-        currentDatasetLabel = findViewById<Spinner>(R.id.spinnerDataset).selectedItem.toString()
 
         currentDatasetLabel = spinner.selectedItem.toString()
-
-        currentDatasetKey = if (pos < 20) {
-            String.format("DS_%02d", pos + 1)
-        } else {
-            "FULL_200"
-        }
-
-
+        currentDatasetKey = if (pos < 20) String.format("DS_%02d", pos + 1) else "FULL_200"
 
         currentlyLoadedRows = if (pos < 20) {
             allData.subList(pos * 10, (pos + 1) * 10).toMutableList()
@@ -192,36 +206,37 @@ class MainActivity : AppCompatActivity() {
         resetMetrics()
 
         currentlyLoadedRows.forEach { row ->
-            // row indices based on your earlier usage:
-            // id=row[0], name=row[1], link=row[2], ingredients=row[3], expected=row[13]
+            // Expected column index 13, Ingredients 3, Link 2, Name 1, Id 0 (based on your dataset)
             addFoodItemToUI(container, row[0], row[1], row[13], row[3], row[2])
         }
+
+        Toast.makeText(this, "Loaded: $currentDatasetLabel", Toast.LENGTH_SHORT).show()
     }
 
+    // -------------------------
+    // Batch run (skip if exists)
+    // -------------------------
     private fun runAllAnalysis() {
 
-        // 1) Must load dataset first
+        // 1️⃣ Must load dataset first
         if (currentlyLoadedRows.isEmpty()) {
             Toast.makeText(this, "Load dataset first.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        if (currentSessionId.isBlank()) {
-            currentSessionId = getOrCreateSessionId()
-        }
+        if (currentSessionId.isBlank()) currentSessionId = getOrCreateSessionId()
 
-
-        // 3) Model selection
+        // 2️⃣ Model selection
         activeModel = findViewById<Spinner>(R.id.spinnerModel).selectedItem.toString()
 
-        // 4) Model file must exist in internal storage
+        // 3️⃣ Model file check
         val modelFile = File(getModelsDir(), activeModel)
         if (!modelFile.exists() || modelFile.length() < 1024) {
             pendingRunBatch = true
             pendingModelName = activeModel
             Toast.makeText(
                 this,
-                "Select GGUF for: $activeModel (it will be copied into app storage)",
+                "Select GGUF for: $activeModel (will be copied into app storage)",
                 Toast.LENGTH_LONG
             ).show()
             pickModelLauncher.launch(arrayOf("*/*"))
@@ -230,101 +245,198 @@ class MainActivity : AppCompatActivity() {
 
         val modelPath = modelFile.absolutePath
 
-        // 5) Show progress UI
+        // 4️⃣ Progress UI
         val progressBar = findViewById<ProgressBar>(R.id.progressBar)
         val analyzingSection = findViewById<LinearLayout>(R.id.analyzingSection)
+        val tvCurrent = findViewById<TextView>(R.id.tvCurrentItemName)
+
+        val totalItems = currentlyLoadedRows.size
+
         analyzingSection.visibility = View.VISIBLE
-        progressBar.max = currentlyLoadedRows.size
+        progressBar.max = totalItems
         progressBar.progress = 0
+        tvCurrent.text = "Checking existing results..."
 
         lifecycleScope.launch(Dispatchers.IO) {
 
-            currentlyLoadedRows.forEachIndexed { index, row ->
+            // ✅ Query all docs for this session+dataset+model
+            val snap = db.collection("project_benchmarks")
+                .whereEqualTo("sessionId", currentSessionId)
+                .whereEqualTo("datasetKey", currentDatasetKey)
+                .whereEqualTo("model", activeModel)
+                .get()
+                .await()
+
+            // ✅ Build unique dataId set + (optional) latest doc per dataId
+            val existingDataIds = HashSet<String>()
+            val latestDocByDataId =
+                HashMap<String, com.google.firebase.firestore.DocumentSnapshot>()
+
+            for (doc in snap.documents) {
+                val dataId = doc.getString("dataId") ?: continue
+                existingDataIds.add(dataId)
+
+                // if duplicates exist in Firestore, keep one (you can prefer newest timestamp)
+                val prev = latestDocByDataId[dataId]
+                if (prev == null) {
+                    latestDocByDataId[dataId] = doc
+                } else {
+                    val prevTs = prev.getTimestamp("timestamp")?.toDate()?.time ?: 0L
+                    val curTs = doc.getTimestamp("timestamp")?.toDate()?.time ?: 0L
+                    if (curTs >= prevTs) latestDocByDataId[dataId] = doc
+                }
+            }
+
+            val existingUniqueCount = existingDataIds.size
+            val totalItems = currentlyLoadedRows.size
+
+            // ================================
+            // ✅ CASE A: ALL ITEMS EXIST (UNIQUE) → LOAD ONLY
+            // ================================
+            if (existingUniqueCount >= totalItems) {
+
+                // load UI directly using docs we already fetched (no extra reads)
+                currentlyLoadedRows.forEachIndexed { index, row ->
+                    val dataId = row[0]
+                    val doc = latestDocByDataId[dataId] ?: return@forEachIndexed
+
+                    val name = row[1]
+                    val link = row[2]
+                    val ingredients = row[3]
+                    val expectedStr = row[13]
+
+                    val predStr = doc.getString("predictedAllergens") ?: "EMPTY"
+
+                    val m = InferenceMetrics(
+                        latencyMs = doc.getLong("latencyMs") ?: 0L,
+                        javaHeapKb = doc.getLong("javaHeapKb") ?: 0L,
+                        nativeHeapKb = doc.getLong("nativeHeapKb") ?: 0L,
+                        totalPssKb = doc.getLong("pssKb") ?: 0L,
+                        ttft = doc.getLong("ttft") ?: 0L,
+                        itps = doc.getLong("itps") ?: 0L,
+                        otps = doc.getLong("otps") ?: 0L,
+                        oet = doc.getLong("oet") ?: 0L
+                    )
+
+                    val predSet = parseAllergenSet(predStr)
+                    val shownPred =
+                        if (predSet.isEmpty()) "No allergens detected" else predSet.joinToString(", ")
+
+                    withContext(Dispatchers.Main) {
+                        progressBar.progress = index + 1
+                        tvCurrent.text = "Loading ${index + 1} of $totalItems: $name"
+
+                        val resultsContainer = findViewById<LinearLayout>(R.id.resultsContainer)
+                        val itemLayout = resultsContainer.getChildAt(index) as? LinearLayout
+                        itemLayout?.let {
+                            updateItemUI(it, name, expectedStr, shownPred, m, ingredients, link)
+                        }
+                    }
+                }
 
                 withContext(Dispatchers.Main) {
-                    findViewById<TextView>(R.id.tvCurrentItemName).text =
-                        "Processing ${index + 1} of ${currentlyLoadedRows.size}: ${row[1]}"
+                    analyzingSection.visibility = View.GONE
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Loaded existing results ($totalItems items).",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                return@launch
+            }
+
+            // ================================
+            // ✅ CASE B: SOME MISSING → ONLY RUN MISSING ONES
+            // ================================
+            currentlyLoadedRows.forEachIndexed { index, row ->
+
+                val dataId = row[0]
+                val name = row[1]
+                val link = row[2]
+                val ingredients = row[3]
+                val expectedStr = row[13]
+
+                withContext(Dispatchers.Main) {
+                    tvCurrent.text = "Processing ${index + 1} of $totalItems: $name"
                     progressBar.progress = index + 1
                 }
 
-                val ingredients = row[3]
-                val expectedStr = row[13]
-                val expectedSet = parseAllergenSet(expectedStr)
+                // ✅ If already exists (unique), LOAD it (NO inference)
+                val existingDoc = latestDocByDataId[dataId]
+                if (existingDoc != null) {
+                    val predStr = existingDoc.getString("predictedAllergens") ?: "EMPTY"
 
-                val prompt =
-                    "You are an allergen extraction system.\n" +
-                            "Extract ONLY allergens that are clearly present in the ingredients.\n" +
-                            "Allowed allergens: milk, egg, peanut, tree nut, wheat, soy, fish, shellfish, sesame.\n" +
-                            "Rules:\n" +
-                            "1) Output ONLY a comma-separated list using ONLY the allowed words, lowercase.\n" +
-                            "2) If none are present, output EMPTY.\n" +
-                            "3) Do NOT explain.\n" +
-                            "Mapping hints:\n" +
-                            "- milk: milk, cream, butter, cheese, whey, casein, lactose, yogurt\n" +
-                            "- egg: egg, albumen, mayonnaise\n" +
-                            "- wheat: wheat, flour, gluten, semolina\n" +
-                            "- soy: soy, soya, soy lecithin\n" +
-                            "- fish: fish, tuna, salmon, cod\n" +
-                            "- shellfish: shrimp, prawn, crab, lobster\n" +
-                            "- peanut: peanut, groundnut\n" +
-                            "- tree nut: almond, cashew, walnut, hazelnut, pistachio\n" +
-                            "- sesame: sesame, tahini\n" +
-                            "Ingredients: $ingredients\n" +
-                            "Answer:"
+                    val m = InferenceMetrics(
+                        latencyMs = existingDoc.getLong("latencyMs") ?: 0L,
+                        javaHeapKb = existingDoc.getLong("javaHeapKb") ?: 0L,
+                        nativeHeapKb = existingDoc.getLong("nativeHeapKb") ?: 0L,
+                        totalPssKb = existingDoc.getLong("pssKb") ?: 0L,
+                        ttft = existingDoc.getLong("ttft") ?: 0L,
+                        itps = existingDoc.getLong("itps") ?: 0L,
+                        otps = existingDoc.getLong("otps") ?: 0L,
+                        oet = existingDoc.getLong("oet") ?: 0L
+                    )
 
+                    val predSet = parseAllergenSet(predStr)
+                    val shownPred =
+                        if (predSet.isEmpty()) "No allergens detected" else predSet.joinToString(", ")
+
+                    withContext(Dispatchers.Main) {
+                        val resultsContainer = findViewById<LinearLayout>(R.id.resultsContainer)
+                        val itemLayout = resultsContainer.getChildAt(index) as? LinearLayout
+                        itemLayout?.let {
+                            updateItemUI(it, name, expectedStr, shownPred, m, ingredients, link)
+                        }
+                    }
+                    return@forEachIndexed
+                }
+
+                // ✅ Missing -> RUN inference and SAVE using deterministic docId
+                val docId = makeDocId(currentSessionId, currentDatasetKey, activeModel, dataId)
+
+                val prompt = buildPrompt(ingredients)
                 val start = System.nanoTime()
                 val nativeOut = inferAllergens(modelPath, prompt)
                 val end = System.nanoTime()
                 val latencyMs = (end - start) / 1_000_000
-
                 val pssAfter = MemoryReader.totalPssKb()
 
-                // native returns: "TTFT_MS=...;ITPS=...;OTPS=...;OET_MS=...|pred"
                 val (predTextRaw, metaRaw) = splitPredictionAndMeta(nativeOut)
-
                 val predSet = parseAllergenSet(predTextRaw)
-                val aiOut = if (predSet.isEmpty()) "EMPTY" else predSet.joinToString(", ")
+                val predStr = if (predSet.isEmpty()) "EMPTY" else predSet.joinToString(", ")
 
-                val mMeta = if (metaRaw.isNotEmpty()) parseMetricsMap(metaRaw) else emptyMap()
+                val metaMap = if (metaRaw.isNotEmpty()) parseMetricsMap(metaRaw) else emptyMap()
 
                 val m = InferenceMetrics(
                     latencyMs = latencyMs,
                     javaHeapKb = MemoryReader.javaHeapKb(),
                     nativeHeapKb = MemoryReader.nativeHeapKb(),
                     totalPssKb = pssAfter,
-                    ttft = mMeta["TTFT_MS"] ?: 0L,
-                    itps = mMeta["ITPS"] ?: 0L,
-                    otps = mMeta["OTPS"] ?: 0L,
-                    oet = mMeta["OET_MS"] ?: 0L
+                    ttft = metaMap["TTFT_MS"] ?: 0L,
+                    itps = metaMap["ITPS"] ?: 0L,
+                    otps = metaMap["OTPS"] ?: 0L,
+                    oet = metaMap["OET_MS"] ?: 0L
                 )
 
-                updateGlobalMetrics(expectedSet, predSet, m, ingredients)
+                val shownPred =
+                    if (predSet.isEmpty()) "No allergens detected" else predSet.joinToString(", ")
 
                 withContext(Dispatchers.Main) {
                     val resultsContainer = findViewById<LinearLayout>(R.id.resultsContainer)
                     val itemLayout = resultsContainer.getChildAt(index) as? LinearLayout
                     itemLayout?.let {
-                        updateItemUI(
-                            it,
-                            row[1],
-                            expectedStr,
-                            aiOut,
-                            m,
-                            ingredients,
-                            row[2]
-                        )
+                        updateItemUI(it, name, expectedStr, shownPred, m, ingredients, link)
                     }
                 }
 
-                // IMPORTANT: must include sessionId + dataset in firestore record
-                saveToFirebase(row[0], row[1], ingredients, expectedStr, aiOut, m)
+                saveToFirebase(docId, dataId, name, ingredients, expectedStr, predStr, m)
             }
 
             withContext(Dispatchers.Main) {
                 analyzingSection.visibility = View.GONE
                 Toast.makeText(
                     this@MainActivity,
-                    "Batch Analysis Completed (${currentlyLoadedRows.size} items)",
+                    "Batch Analysis Completed ($totalItems items)",
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -332,6 +444,9 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+        // -------------------------
+    // UI item rendering
+    // -------------------------
     private fun addFoodItemToUI(
         container: LinearLayout,
         id: String,
@@ -346,10 +461,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         val txt = TextView(this).apply {
-            // icons added here
             text = "🍽️ #$id $name\n✅ Expected: $exp\n🤖 Predicted: Pending..."
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-            setTextColor(android.graphics.Color.BLACK)   // <-- IMPORTANT
+            setTextColor(android.graphics.Color.BLACK)
         }
         itemView.addView(txt)
 
@@ -383,11 +497,10 @@ class MainActivity : AppCompatActivity() {
         val expSet = parseAllergenSet(exp)
         val predSet = parseAllergenSet(pred)
 
+
         val isMatch = expSet == predSet
         val shownPred = if (predSet.isEmpty()) "No allergens detected" else predSet.joinToString(", ")
 
-        // Rebuild full text with icons
-        // NOTE: you don't need "base split" anymore
         val titleLine = txt.text.toString().lineSequence().firstOrNull() ?: "🍽️ $name"
         txt.text =
             "$titleLine\n" +
@@ -399,11 +512,9 @@ class MainActivity : AppCompatActivity() {
             else android.graphics.Color.RED
         )
 
-        // Update Read More to show latest prediction + metrics
         val btn = if (layout.childCount >= 2) layout.getChildAt(1) as Button else null
         btn?.setOnClickListener { showDetailsDialog(name, exp, shownPred, m, ing, link) }
     }
-
 
     private fun showDetailsDialog(
         name: String,
@@ -413,6 +524,10 @@ class MainActivity : AppCompatActivity() {
         ing: String,
         link: String
     ) {
+        val expSet = parseAllergenSet(exp)
+        val predSet = parseAllergenSet(pred)
+        val exactMatchText = if (expSet == predSet) "Match ✅" else "Mismatch ❌"
+
         AlertDialog.Builder(this)
             .setTitle("Item Detail: $name")
             .setMessage(
@@ -420,7 +535,8 @@ class MainActivity : AppCompatActivity() {
                         "🌿 INGREDIENTS:\n$ing\n\n" +
                         "📊 ALLERGEN ANALYSIS:\n" +
                         "Expected: $exp\n" +
-                        "Predicted: $pred\n\n" +
+                        "Predicted: $pred\n" +
+                        "Exact Match: $exactMatchText\n\n" +
                         "📈 PERFORMANCE METRICS:\n" +
                         "Latency: ${m.latencyMs} ms\n" +
                         "TTFT: ${m.ttft} ms\n" +
@@ -436,9 +552,10 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    /** If your native returns "PRED||META:K=V;K=V", this splits it.
-     *  If not, it returns (nativeOut, "").
-     */
+
+    // -------------------------
+    // Native output parsing
+    // -------------------------
     private fun splitPredictionAndMeta(nativeOut: String): Pair<String, String> {
         val s = nativeOut.trim()
         val parts = s.split("|", limit = 2)
@@ -451,9 +568,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     private fun parseMetricsMap(meta: String): Map<String, Long> {
-        // expects "TTFT_MS=123;ITPS=45;OTPS=67;OET_MS=89"
         return meta.split(";")
             .mapNotNull { kv ->
                 val p = kv.split("=")
@@ -465,7 +580,6 @@ class MainActivity : AppCompatActivity() {
         val clean = text.lowercase().trim()
         if (clean.isEmpty() || clean == "empty") return emptySet()
 
-        // Split by comma, trim, filter allowed
         return clean.split(",")
             .map { it.trim() }
             .filter { it.isNotEmpty() }
@@ -475,13 +589,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun normalizeAllergen(a: String): String {
-        // Normalise common variants
         return when (a.trim().lowercase()) {
             "treenut", "tree nuts", "tree_nut", "tree-nut" -> "tree nut"
             else -> a.trim().lowercase()
         }
     }
 
+    // -------------------------
+    // Metrics aggregation (optional)
+    // -------------------------
     private fun updateGlobalMetrics(exp: Set<String>, pred: Set<String>, m: InferenceMetrics, ing: String) {
         totalTP += pred.intersect(exp).size
         totalFP += pred.subtract(exp).size
@@ -490,9 +606,8 @@ class MainActivity : AppCompatActivity() {
         totalItemsInBatch++
         if (exp == pred) exactMatches++
 
-        // simple hallucination check: predicted allergen string appears in ingredients
-        // (not perfect, but ok for a basic count)
-        if (pred.any { !ing.lowercase().contains(it) }) hallucinationCount++
+        val ingredientsLower = ing.lowercase()
+        if (pred.any { !ingredientsLower.contains(it) }) hallucinationCount++
 
         totalLatency += m.latencyMs
         totalTTFT += m.ttft
@@ -500,7 +615,11 @@ class MainActivity : AppCompatActivity() {
         lastPSS = m.totalPssKb
     }
 
-    private fun saveToFirebase(
+    // -------------------------
+    // Firestore save (per-item metrics included)
+    // -------------------------
+    private suspend fun saveToFirebase(
+        docId: String,
         id: String,
         name: String,
         ing: String,
@@ -508,16 +627,26 @@ class MainActivity : AppCompatActivity() {
         pred: String,
         m: InferenceMetrics
     ) {
-        // Optional per-item counts (for Quality table)
         val expSet = parseAllergenSet(exp)
         val predSet = parseAllergenSet(pred)
+
 
         val tp = predSet.intersect(expSet).size
         val fp = predSet.subtract(expSet).size
         val fn = expSet.subtract(predSet).size
         val tn = allowedAllergens.size - tp - fp - fn
 
-        val isAbstain = predSet.isEmpty()
+        val itemPrecision = if (tp + fp == 0) 0.0 else tp.toDouble() / (tp + fp)
+        val itemRecall = if (tp + fn == 0) 0.0 else tp.toDouble() / (tp + fn)
+        val itemF1 = if ((2 * tp + fp + fn) == 0) 0.0 else (2.0 * tp) / (2 * tp + fp + fn)
+        val itemHamming = (fp + fn).toDouble() / allowedAllergens.size.toDouble()
+
+        val ingredientsLower = ing.lowercase()
+        val hallucinationFlag = predSet.any { !ingredientsLower.contains(it) }
+        val overPredictionFlag = predSet.subtract(expSet).isNotEmpty()
+
+        val abstentionExpected = expSet.isEmpty()
+        val abstentionCorrect = abstentionExpected && predSet.isEmpty()
 
         val record = hashMapOf(
             "sessionId" to currentSessionId,
@@ -531,6 +660,18 @@ class MainActivity : AppCompatActivity() {
             "expectedAllergens" to exp,
             "predictedAllergens" to pred,
 
+            "tp" to tp, "fp" to fp, "fn" to fn, "tn" to tn,
+
+            "itemPrecision" to itemPrecision,
+            "itemRecall" to itemRecall,
+            "itemF1" to itemF1,
+            "itemHammingLoss" to itemHamming,
+
+            "hallucinationFlag" to hallucinationFlag,
+            "overPredictionFlag" to overPredictionFlag,
+            "abstentionExpected" to abstentionExpected,
+            "abstentionCorrect" to abstentionCorrect,
+
             "latencyMs" to m.latencyMs,
             "ttft" to m.ttft,
             "itps" to m.itps,
@@ -543,13 +684,72 @@ class MainActivity : AppCompatActivity() {
 
             "timestamp" to FieldValue.serverTimestamp()
         )
-        db.collection("project_benchmarks").add(record)
 
-
+        // IMPORTANT: actually save it (and wait for completion)
+        db.collection("project_benchmarks")
+            .document(docId)
+            .set(record)
+            .await()
     }
 
 
+    private suspend fun loadExistingResultsOnly(
+        progressBar: ProgressBar,
+        tvCurrent: TextView
+    ) {
+        val totalItems = currentlyLoadedRows.size
 
+
+
+        currentlyLoadedRows.forEachIndexed { index, row ->
+            val dataId = row[0]
+            val name = row[1]
+            val link = row[2]
+            val ingredients = row[3]
+            val expectedStr = row[13]
+
+            val docId = makeDocId(currentSessionId, currentDatasetKey, activeModel, dataId)
+
+            val snap = db.collection("project_benchmarks")
+                .document(docId)
+                .get()
+                .await()
+
+            if (!snap.exists()) return@forEachIndexed
+
+            val predStr = snap.getString("predictedAllergens") ?: "EMPTY"
+
+            val m = InferenceMetrics(
+                latencyMs = snap.getLong("latencyMs") ?: 0L,
+                javaHeapKb = snap.getLong("javaHeapKb") ?: 0L,
+                nativeHeapKb = snap.getLong("nativeHeapKb") ?: 0L,
+                totalPssKb = snap.getLong("pssKb") ?: 0L,
+                ttft = snap.getLong("ttft") ?: 0L,
+                itps = snap.getLong("itps") ?: 0L,
+                otps = snap.getLong("otps") ?: 0L,
+                oet = snap.getLong("oet") ?: 0L
+            )
+
+            val predSet = parseAllergenSet(predStr)
+            val shownPred =
+                if (predSet.isEmpty()) "No allergens detected" else predSet.joinToString(", ")
+
+            withContext(Dispatchers.Main) {
+                progressBar.progress = index + 1
+                tvCurrent.text = "Loading ${index + 1} of $totalItems: $name"
+
+                val resultsContainer = findViewById<LinearLayout>(R.id.resultsContainer)
+                val itemLayout = resultsContainer.getChildAt(index) as? LinearLayout
+                itemLayout?.let {
+                    updateItemUI(it, name, expectedStr, shownPred, m, ingredients, link)
+                }
+            }
+        }
+    }
+
+    // -------------------------
+    // CSV loading
+    // -------------------------
     private fun loadCSV(): List<List<String>> {
         val rows = mutableListOf<List<String>>()
         assets.open("foodpreprocessed.csv").bufferedReader().useLines { lines ->
@@ -563,13 +763,27 @@ class MainActivity : AppCompatActivity() {
         return rows
     }
 
-    private fun setupNavigation() {
-        findViewById<BottomNavigationView>(R.id.bottomNav).setOnItemSelectedListener { item ->
-            if (item.itemId == R.id.nav_dashboard) {
-                openDashboard()
-                true
-            } else false
+    // -------------------------
+    // Dashboard navigation
+    // -------------------------
+    private fun openDashboard() {
+        if (currentSessionId.isBlank()) currentSessionId = getOrCreateSessionId()
+
+        if (currentDatasetLabel.isBlank() || currentDatasetKey.isBlank()) {
+            Toast.makeText(this, "Load a dataset first.", Toast.LENGTH_SHORT).show()
+            return
         }
+
+        // ensure latest model
+        activeModel = findViewById<Spinner>(R.id.spinnerModel).selectedItem.toString()
+
+        val intent = Intent(this, DashboardActivity::class.java).apply {
+            putExtra("SESSION_ID", currentSessionId)
+            putExtra("DATASET_KEY", currentDatasetKey)
+            putExtra("DATASET_LABEL", currentDatasetLabel)
+            putExtra("MODEL_NAME", activeModel)
+        }
+        startActivity(intent)
     }
 
     private fun resetMetrics() {
@@ -585,33 +799,34 @@ class MainActivity : AppCompatActivity() {
         lastPSS = 0L
     }
 
-    private fun openDashboard() {
-        // sessionId is always available from prefs
-        if (currentSessionId.isBlank()) currentSessionId = getOrCreateSessionId()
-
-        // but dataset MUST be chosen (because dashboard filters by datasetLabel)
-        if (currentDatasetLabel.isBlank()) {
-            Toast.makeText(this, "Load a dataset first.", Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (currentDatasetKey.isBlank()) {
-            Toast.makeText(this, "Load a dataset first.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-
-        val intent = Intent(this, DashboardActivity::class.java).apply {
-            putExtra("SESSION_ID", currentSessionId)
-            putExtra("DATASET_KEY", currentDatasetKey)
-            putExtra("DATASET_LABEL", currentDatasetLabel)
-            putExtra("MODEL_NAME", activeModel)
-        }
-        startActivity(intent)
+    // -------------------------
+    // Prompt builder
+    // -------------------------
+    private fun buildPrompt(ingredients: String): String {
+        return "You are an allergen extraction system.\n" +
+                "Extract ONLY allergens that are clearly present in the ingredients.\n" +
+                "Allowed allergens: milk, egg, peanut, tree nut, wheat, soy, fish, shellfish, sesame.\n" +
+                "Rules:\n" +
+                "1) Output ONLY a comma-separated list using ONLY the allowed words, lowercase.\n" +
+                "2) If none are present, output EMPTY.\n" +
+                "3) Do NOT explain.\n" +
+                "Mapping hints:\n" +
+                "- milk: milk, cream, butter, cheese, whey, casein, lactose, yogurt\n" +
+                "- egg: egg, albumen, mayonnaise\n" +
+                "- wheat: wheat, flour, gluten, semolina\n" +
+                "- soy: soy, soya, soy lecithin\n" +
+                "- fish: fish, tuna, salmon, cod\n" +
+                "- shellfish: shrimp, prawn, crab, lobster\n" +
+                "- peanut: peanut, groundnut\n" +
+                "- tree nut: almond, cashew, walnut, hazelnut, pistachio\n" +
+                "- sesame: sesame, tahini\n" +
+                "Ingredients: $ingredients\n" +
+                "Answer:"
     }
 
-
-    // --- Model storage helpers (internal, safe for Android 11+) ---
-
+    // -------------------------
+    // Internal model storage (Android 11+ safe)
+    // -------------------------
     private fun getModelsDir(): File {
         val dir = File(filesDir, "models")
         if (!dir.exists()) dir.mkdirs()
@@ -632,4 +847,12 @@ class MainActivity : AppCompatActivity() {
             false
         }
     }
+    private fun makeDocId(sessionId: String, datasetKey: String, model: String, dataId: String): String {
+        return "${sessionId}_${datasetKey}_${model}_${dataId}"
+    }
+
+
+
 }
+
+
